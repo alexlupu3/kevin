@@ -88,9 +88,11 @@ usage() {
 Usage: kevin <command> [other-options]
 
 Allowed commands:
+  help
   server-check
   server-update
   project-create
+  project-list
   project-disable
   project-enable
   project-delete
@@ -107,17 +109,27 @@ require_command() {
 
 command_path() {
     case "$1" in
-        server-check|server-update|project-create|project-disable|project-enable|project-delete|server-vuln-scan)
-            printf '/opt/kevin/bin/%s\n' "$1"
-            ;;
         help|-h|--help)
-            usage
-            exit 0
+            printf '/opt/kevin/bin/help\n'
+            ;;
+        server-check|server-update|project-create|project-list|project-disable|project-enable|project-delete|server-vuln-scan)
+            printf '/opt/kevin/bin/%s\n' "$1"
             ;;
         *)
             echo "Unknown Kevin command: $1" >&2
             usage >&2
             exit 1
+            ;;
+    esac
+}
+
+command_runs_unprivileged() {
+    case "$1" in
+        help|project-list)
+            return 0
+            ;;
+        *)
+            return 1
             ;;
     esac
 }
@@ -134,6 +146,10 @@ main() {
     if [[ ! -x "${target}" ]]; then
         echo "Kevin runtime tool not installed: ${target}" >&2
         exit 1
+    fi
+
+    if command_runs_unprivileged "${subcommand}"; then
+        exec "${target}" "$@"
     fi
 
     if [[ "${EUID}" -eq 0 ]]; then

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN_BASE="alexlupu.dev"
+SITES_AVAILABLE_DIR="/etc/nginx/sites-available"
+SITES_ENABLED_DIR="/etc/nginx/sites-enabled"
+
+usage() {
+    echo "Usage: project-list" >&2
+}
+
+validate_args() {
+    if [[ "$#" -ne 0 ]]; then
+        usage
+        exit 1
+    fi
+}
+
+collect_projects() {
+    local entry
+    local domain
+    local project
+    local enabled_path
+    local resolved_enabled
+    local status
+    local rows=()
+
+    shopt -s nullglob
+    for entry in "${SITES_AVAILABLE_DIR}"/*."${DOMAIN_BASE}"; do
+        if [[ ! -f "${entry}" ]]; then
+            continue
+        fi
+
+        domain="$(basename "${entry}")"
+        project="${domain%.${DOMAIN_BASE}}"
+
+        if [[ -z "${project}" || "${project}" == "${domain}" ]]; then
+            continue
+        fi
+
+        enabled_path="${SITES_ENABLED_DIR}/${domain}"
+        status="disabled"
+
+        if [[ -L "${enabled_path}" ]]; then
+            resolved_enabled="$(readlink -f "${enabled_path}")"
+            if [[ "${resolved_enabled}" == "${entry}" ]]; then
+                status="enabled"
+            fi
+        fi
+
+        rows+=("${project}"$'\t'"${status}")
+    done
+    shopt -u nullglob
+
+    if [[ "${#rows[@]}" -eq 0 ]]; then
+        echo "No projects found."
+        return
+    fi
+
+    printf "PROJECT\tSTATUS\n"
+    printf '%s\n' "${rows[@]}" | sort
+}
+
+main() {
+    validate_args "$@"
+    collect_projects
+}
+
+main "$@"

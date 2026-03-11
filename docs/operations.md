@@ -29,6 +29,13 @@ sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
 ```
 
+To deploy the help and project listing tools:
+
+```bash
+sudo bash bootstrap/15-install-help.sh
+sudo bash bootstrap/32-install-project-list.sh
+```
+
 ## Rerun Full Bootstrap
 
 The bootstrap scripts are intended to be idempotent:
@@ -42,7 +49,15 @@ sudo KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
 ```bash
 sudo -l -U kevin
 sudo -u kevin sudo -l
+sudo -u kevin kevin help
+kevin project-list
 sudo -u kevin kevin server-check
+```
+
+## List Kevin Commands
+
+```bash
+sudo kevin help
 ```
 
 ## Test Project Creation
@@ -56,6 +71,12 @@ Then validate:
 ```bash
 sudo nginx -t
 curl -I https://testapp.alexlupu.dev
+```
+
+## Test Project List
+
+```bash
+kevin project-list
 ```
 
 ## Test Project Disable

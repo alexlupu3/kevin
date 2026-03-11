@@ -7,8 +7,10 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Create and maintain the `kevin` operator account
 - Install root-owned runtime tools into `/opt/kevin/bin`
 - Run a server health check
+- Show the full Kevin command list
 - Run safe package maintenance
 - Provision a new PHP/Nginx project site
+- List existing PHP/Nginx project sites and whether they are enabled
 - Re-enable a previously disabled project site
 - Disable an existing project site without deleting files
 - Delete an existing project site, config, and files with explicit confirmation
@@ -55,6 +57,7 @@ sudo KEVIN_PUBKEY="ssh-ed25519 AAAA..." KEVIN_INSTALL_CLI=y bash bootstrap/99-bo
 `KEVIN_INSTALL_CLI=y` is optional. When set, Kevin also installs a wrapper at `/usr/local/bin/kevin` so you can run:
 
 ```bash
+kevin help
 kevin server-check
 sudo kevin server-check
 sudo kevin project-create testapp
@@ -65,8 +68,10 @@ If you want to install pieces one at a time:
 ```bash
 sudo KEVIN_INSTALL_CLI=y bash bootstrap/00-kevin-birth.sh
 sudo bash bootstrap/10-install-server-check.sh
+sudo bash bootstrap/15-install-help.sh
 sudo bash bootstrap/20-install-server-update.sh
 sudo bash bootstrap/30-install-project-create.sh
+sudo bash bootstrap/32-install-project-list.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
@@ -81,8 +86,10 @@ Each installer is designed to be safe to rerun. Reinstalling a tool simply recop
 Examples:
 
 ```bash
+sudo bash bootstrap/15-install-help.sh
 sudo bash bootstrap/10-install-server-check.sh
 sudo bash bootstrap/30-install-project-create.sh
+sudo bash bootstrap/32-install-project-list.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
@@ -96,7 +103,10 @@ Run these checks after bootstrap:
 ```bash
 id kevin
 sudo -l -U kevin
+sudo -u kevin kevin help
 sudo -u kevin kevin server-check
+sudo kevin help
+kevin project-list
 sudo kevin server-check
 sudo kevin server-update
 sudo kevin server-vuln-scan
@@ -114,6 +124,12 @@ Then confirm:
 ls -la /var/www/testapp/public
 sudo nginx -t
 curl -I https://testapp.alexlupu.dev
+```
+
+To list all configured projects and whether each site is enabled:
+
+```bash
+kevin project-list
 ```
 
 To disable the site later while keeping its files and Nginx config in place:
@@ -138,8 +154,10 @@ sudo kevin project-delete testapp --force
 
 - Runtime tools are copied into `/opt/kevin/bin` and owned by `root:root`.
 - The optional `kevin` CLI wrapper is installed at `/usr/local/bin/kevin` by `bootstrap/00-kevin-birth.sh` when `KEVIN_INSTALL_CLI=y`.
+- `help` prints the current Kevin command list and is safe to run without root.
 - Sudoers is managed only through `bootstrap/90-install-sudoers.sh`.
 - The bootstrap can be rerun. It should converge to the same deployed state rather than drift.
 - `project-enable` restores the `sites-enabled` symlink, then validates and reloads Nginx.
 - `project-disable` removes only the `sites-enabled` symlink, then validates and reloads Nginx.
+- `project-list` reads Kevin-managed Nginx site configs and reports `enabled` or `disabled`.
 - `project-delete` removes the site config and project files and requires `--force`.

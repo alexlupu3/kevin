@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Kevin available commands:
+  help                Show this command list
+  server-check        Run a server health check
+  server-update       Run safe package maintenance
+  project-create      Create a new PHP/Nginx project site
+  project-list        List projects and whether they are enabled or disabled
+  project-disable     Disable a project without deleting files
+  project-enable      Re-enable a previously disabled project
+  project-delete      Delete a project and its config with --force
+  server-vuln-scan    Run a vulnerability and hardening audit
+EOF
+}
+
+main() {
+    if [[ "$#" -ne 0 ]]; then
+        echo "Usage: help" >&2
+        exit 1
+    fi
+
+    usage
+}
+
+main "$@"

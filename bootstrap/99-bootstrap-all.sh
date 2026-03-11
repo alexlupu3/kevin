@@ -10,8 +10,10 @@ fi
 
 bash "${SCRIPT_DIR}/00-kevin-birth.sh"
 bash "${SCRIPT_DIR}/10-install-server-check.sh"
+bash "${SCRIPT_DIR}/15-install-help.sh"
 bash "${SCRIPT_DIR}/20-install-server-update.sh"
 bash "${SCRIPT_DIR}/30-install-project-create.sh"
+bash "${SCRIPT_DIR}/32-install-project-list.sh"
 bash "${SCRIPT_DIR}/35-install-project-disable.sh"
 bash "${SCRIPT_DIR}/36-install-project-enable.sh"
 bash "${SCRIPT_DIR}/37-install-project-delete.sh"
@@ -24,10 +26,12 @@ Bootstrap complete.
 Suggested verification:
   id kevin
   sudo -l -U kevin
+  sudo kevin help
   sudo kevin server-check
   sudo kevin server-update
   sudo kevin server-vuln-scan
   sudo kevin project-create testapp
+  sudo kevin project-list
   sudo kevin project-disable testapp
   sudo kevin project-enable testapp
   sudo kevin project-delete testapp --force
