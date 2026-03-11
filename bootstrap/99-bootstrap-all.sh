@@ -8,15 +8,15 @@ if [[ "${EUID}" -ne 0 ]]; then
     exit 1
 fi
 
-"${SCRIPT_DIR}/00-kevin-birth.sh"
-"${SCRIPT_DIR}/10-install-server-check.sh"
-"${SCRIPT_DIR}/20-install-server-update.sh"
-"${SCRIPT_DIR}/30-install-project-create.sh"
-"${SCRIPT_DIR}/35-install-project-disable.sh"
-"${SCRIPT_DIR}/36-install-project-enable.sh"
-"${SCRIPT_DIR}/37-install-project-delete.sh"
-"${SCRIPT_DIR}/40-install-server-vuln-scan.sh"
-"${SCRIPT_DIR}/90-install-sudoers.sh"
+bash "${SCRIPT_DIR}/00-kevin-birth.sh"
+bash "${SCRIPT_DIR}/10-install-server-check.sh"
+bash "${SCRIPT_DIR}/20-install-server-update.sh"
+bash "${SCRIPT_DIR}/30-install-project-create.sh"
+bash "${SCRIPT_DIR}/35-install-project-disable.sh"
+bash "${SCRIPT_DIR}/36-install-project-enable.sh"
+bash "${SCRIPT_DIR}/37-install-project-delete.sh"
+bash "${SCRIPT_DIR}/40-install-server-vuln-scan.sh"
+bash "${SCRIPT_DIR}/90-install-sudoers.sh"
 
 cat <<'EOF'
 Bootstrap complete.
