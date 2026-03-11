@@ -42,6 +42,7 @@ sudo KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
 ```bash
 sudo -l -U kevin
 sudo -u kevin sudo -l
+sudo -u kevin kevin server-check
 ```
 
 ## Test Project Creation

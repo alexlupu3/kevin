@@ -55,8 +55,9 @@ sudo KEVIN_PUBKEY="ssh-ed25519 AAAA..." KEVIN_INSTALL_CLI=y bash bootstrap/99-bo
 `KEVIN_INSTALL_CLI=y` is optional. When set, Kevin also installs a wrapper at `/usr/local/bin/kevin` so you can run:
 
 ```bash
+kevin server-check
 sudo kevin server-check
-kevin project-create testapp
+sudo kevin project-create testapp
 ```
 
 If you want to install pieces one at a time:
@@ -95,6 +96,7 @@ Run these checks after bootstrap:
 ```bash
 id kevin
 sudo -l -U kevin
+sudo -u kevin kevin server-check
 sudo kevin server-check
 sudo kevin server-update
 sudo kevin server-vuln-scan

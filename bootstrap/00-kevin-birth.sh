@@ -140,6 +140,10 @@ main() {
         exec "${target}" "$@"
     fi
 
+    if [[ "${USER:-}" == "kevin" ]]; then
+        exec sudo "${target}" "$@"
+    fi
+
     exec sudo -u kevin sudo "${target}" "$@"
 }
 
