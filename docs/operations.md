@@ -29,6 +29,12 @@ sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
 ```
 
+To deploy the project deployment tool:
+
+```bash
+sudo bash bootstrap/34-install-project-deploy.sh
+```
+
 To deploy the help and project listing tools:
 
 ```bash
@@ -70,7 +76,19 @@ Then validate:
 
 ```bash
 sudo nginx -t
+test -d /opt/kevin/staging/testapp
 curl -I https://testapp.alexlupu.dev
+```
+
+## Test Project Deploy
+
+Direct `rsync` into `/var/www/<project>/public` is not supported. Stage files under `/opt/kevin/staging/<project>/` and deploy with Kevin:
+
+```bash
+sudo -u kevin rsync -av ./build/ /opt/kevin/staging/testapp/
+sudo kevin project-deploy testapp
+test -f /var/log/kevin/project-deploy.log
+find /var/www/testapp/public -printf '%M %u:%g %p\n' | head
 ```
 
 ## Test Project List
@@ -110,6 +128,7 @@ test ! -d /var/www/testapp
 
 ```bash
 sudo ls -lah /var/log/kevin
+sudo tail -n 100 /var/log/kevin/project-deploy.log
 sudo tail -n 100 /var/log/kevin/server-update.log
 sudo tail -n 100 /var/log/kevin/server-vuln-scan-*.log
 ```

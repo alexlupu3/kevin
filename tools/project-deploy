@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_DIR="/var/log/kevin"
+LOG_FILE="${LOG_DIR}/project-deploy.log"
+STAGING_BASE="/opt/kevin/staging"
+WEB_ROOT_BASE="/var/www"
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "project-deploy must run as root." >&2
+        exit 1
+    fi
+}
+
+validate_args() {
+    if [[ "$#" -ne 1 ]]; then
+        echo "Usage: project-deploy <project-name>" >&2
+        exit 1
+    fi
+
+    PROJECT="$1"
+
+    if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
+        exit 1
+    fi
+}
+
+prepare_paths() {
+    PROJECT_ROOT="${WEB_ROOT_BASE}/${PROJECT}"
+    WEB_ROOT="${PROJECT_ROOT}/public"
+    STAGING_ROOT="${STAGING_BASE}/${PROJECT}"
+}
+
+validate_project() {
+    if [[ ! -d "${PROJECT_ROOT}" || ! -d "${WEB_ROOT}" ]]; then
+        echo "Project does not exist: ${PROJECT}" >&2
+        exit 1
+    fi
+
+    if [[ ! -d "${STAGING_ROOT}" ]]; then
+        echo "Project staging directory not found: ${STAGING_ROOT}" >&2
+        exit 1
+    fi
+}
+
+validate_paths() {
+    local resolved_project_root
+    local resolved_web_root
+    local resolved_staging_root
+    local expected_project_root
+    local expected_web_root
+    local expected_staging_root
+
+    resolved_project_root="$(readlink -f "${PROJECT_ROOT}")"
+    resolved_web_root="$(readlink -f "${WEB_ROOT}")"
+    resolved_staging_root="$(readlink -f "${STAGING_ROOT}")"
+
+    expected_project_root="${WEB_ROOT_BASE}/${PROJECT}"
+    expected_web_root="${WEB_ROOT_BASE}/${PROJECT}/public"
+    expected_staging_root="${STAGING_BASE}/${PROJECT}"
+
+    if [[ "${resolved_project_root}" != "${expected_project_root}" ]]; then
+        echo "Refusing unexpected project root path: ${PROJECT_ROOT}" >&2
+        exit 1
+    fi
+
+    if [[ "${resolved_web_root}" != "${expected_web_root}" ]]; then
+        echo "Refusing unexpected web root path: ${WEB_ROOT}" >&2
+        exit 1
+    fi
+
+    if [[ "${resolved_staging_root}" != "${expected_staging_root}" ]]; then
+        echo "Refusing unexpected staging path: ${STAGING_ROOT}" >&2
+        exit 1
+    fi
+}
+
+prepare_logging() {
+    install -d -o root -g root -m 750 "${LOG_DIR}"
+    touch "${LOG_FILE}"
+    chown root:root "${LOG_FILE}"
+    chmod 640 "${LOG_FILE}"
+    exec > >(tee -a "${LOG_FILE}") 2>&1
+}
+
+sync_project() {
+    rsync -a --delete --safe-links "${STAGING_ROOT}/" "${WEB_ROOT}/"
+}
+
+enforce_permissions() {
+    chown www-data:www-data "${PROJECT_ROOT}"
+    chmod 755 "${PROJECT_ROOT}"
+    chown -R www-data:www-data "${WEB_ROOT}"
+    find "${WEB_ROOT}" -type d -exec chmod 755 {} +
+    find "${WEB_ROOT}" -type f -exec chmod 644 {} +
+}
+
+main() {
+    require_root
+    validate_args "$@"
+    prepare_paths
+    validate_project
+    validate_paths
+    prepare_logging
+
+    echo "[$(date -Is)] Starting project deploy for ${PROJECT}"
+    echo "Staging: ${STAGING_ROOT}"
+    echo "Destination: ${WEB_ROOT}"
+
+    sync_project
+    enforce_permissions
+
+    echo "[$(date -Is)] Project deploy complete for ${PROJECT}"
+}
+
+main "$@"

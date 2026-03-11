@@ -8,6 +8,7 @@ Kevin available commands:
   server-check        Run a server health check
   server-update       Run safe package maintenance
   project-create      Create a new PHP/Nginx project site
+  project-deploy      Deploy staged project files into the live web root
   project-list        List projects and whether they are enabled or disabled
   project-disable     Disable a project without deleting files
   project-enable      Re-enable a previously disabled project

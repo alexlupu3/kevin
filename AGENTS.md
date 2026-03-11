@@ -16,6 +16,7 @@ This repository manages a restricted VPS operations agent called Kevin.
 - Domain base is `alexlupu.dev`.
 - New projects use `<project>.alexlupu.dev`.
 - Project web roots use `/var/www/<project>/public`.
+- Project staging roots use `/opt/kevin/staging/<project>`.
 - Project ownership in v1 is `www-data:www-data`.
 - PHP-FPM socket is `/run/php/php8.3-fpm.sock`.
 - Wildcard certificate paths are:
@@ -37,6 +38,8 @@ This repository manages a restricted VPS operations agent called Kevin.
 - Installed templates under `/opt/kevin/templates` must be owned by `root:root`.
 - `/etc/sudoers.d/kevin` must be mode `0440` and pass `visudo -c`.
 - `00-kevin-birth.sh` creates the account and directories only. It must not install tools or sudoers.
+- Deployments must flow from `/opt/kevin/staging/<project>/` to `/var/www/<project>/public/` via `project-deploy`.
+- Direct `rsync` into `/var/www/<project>/public` is not supported.
 
 ## v1 Scope
 
@@ -45,6 +48,7 @@ Allowed tools:
 - `server-check`
 - `server-update`
 - `project-create`
+- `project-deploy`
 - `project-disable`
 - `project-enable`
 - `project-delete`

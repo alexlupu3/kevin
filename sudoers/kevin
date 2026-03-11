@@ -3,6 +3,7 @@ Defaults:kevin secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/s
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-check
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-update
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-create
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-deploy
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-disable
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-enable
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-delete

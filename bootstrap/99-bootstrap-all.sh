@@ -14,6 +14,7 @@ bash "${SCRIPT_DIR}/15-install-help.sh"
 bash "${SCRIPT_DIR}/20-install-server-update.sh"
 bash "${SCRIPT_DIR}/30-install-project-create.sh"
 bash "${SCRIPT_DIR}/32-install-project-list.sh"
+bash "${SCRIPT_DIR}/34-install-project-deploy.sh"
 bash "${SCRIPT_DIR}/35-install-project-disable.sh"
 bash "${SCRIPT_DIR}/36-install-project-enable.sh"
 bash "${SCRIPT_DIR}/37-install-project-delete.sh"
@@ -31,6 +32,7 @@ Suggested verification:
   sudo kevin server-update
   sudo kevin server-vuln-scan
   sudo kevin project-create testapp
+  sudo kevin project-deploy testapp
   sudo kevin project-list
   sudo kevin project-disable testapp
   sudo kevin project-enable testapp

@@ -30,6 +30,7 @@ validate_args() {
 
 prepare_paths() {
     DOMAIN="${PROJECT}.${DOMAIN_BASE}"
+    STAGING_ROOT="/opt/kevin/staging/${PROJECT}"
     WEB_ROOT="/var/www/${PROJECT}/public"
     SITE_AVAILABLE="/etc/nginx/sites-available/${DOMAIN}"
     SITE_ENABLED="/etc/nginx/sites-enabled/${DOMAIN}"
@@ -41,7 +42,7 @@ validate_prereqs() {
         exit 1
     fi
 
-    if [[ -e "${WEB_ROOT}" || -e "${SITE_AVAILABLE}" || -L "${SITE_ENABLED}" ]]; then
+    if [[ -e "${WEB_ROOT}" || -e "${STAGING_ROOT}" || -e "${SITE_AVAILABLE}" || -L "${SITE_ENABLED}" ]]; then
         echo "Refusing to overwrite existing project assets for ${PROJECT}." >&2
         exit 1
     fi
@@ -58,6 +59,8 @@ validate_prereqs() {
 }
 
 create_project_tree() {
+    install -d -o root -g root -m 755 "/opt/kevin/staging"
+    install -d -o kevin -g kevin -m 755 "${STAGING_ROOT}"
     install -d -o www-data -g www-data -m 755 "/var/www/${PROJECT}"
     install -d -o www-data -g www-data -m 755 "${WEB_ROOT}"
 
@@ -108,6 +111,7 @@ main() {
 Project created successfully.
 - project: ${PROJECT}
 - domain: ${DOMAIN}
+- staging root: ${STAGING_ROOT}
 - web root: ${WEB_ROOT}
 EOF
 }

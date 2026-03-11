@@ -10,6 +10,7 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Show the full Kevin command list
 - Run safe package maintenance
 - Provision a new PHP/Nginx project site
+- Deploy staged project files from `/opt/kevin/staging/<project>/` into the live web root
 - List existing PHP/Nginx project sites and whether they are enabled
 - Re-enable a previously disabled project site
 - Disable an existing project site without deleting files
@@ -72,6 +73,7 @@ sudo bash bootstrap/15-install-help.sh
 sudo bash bootstrap/20-install-server-update.sh
 sudo bash bootstrap/30-install-project-create.sh
 sudo bash bootstrap/32-install-project-list.sh
+sudo bash bootstrap/34-install-project-deploy.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
@@ -90,6 +92,7 @@ sudo bash bootstrap/15-install-help.sh
 sudo bash bootstrap/10-install-server-check.sh
 sudo bash bootstrap/30-install-project-create.sh
 sudo bash bootstrap/32-install-project-list.sh
+sudo bash bootstrap/34-install-project-deploy.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
@@ -122,8 +125,23 @@ Then confirm:
 
 ```bash
 ls -la /var/www/testapp/public
+ls -la /opt/kevin/staging/testapp
 sudo nginx -t
 curl -I https://testapp.alexlupu.dev
+```
+
+Deployments must go through Kevin staging. Direct `rsync` into `/var/www/<project>/public` is not supported.
+
+```bash
+rsync -av ./build/ /opt/kevin/staging/testapp/
+sudo kevin project-deploy testapp
+```
+
+Then confirm:
+
+```bash
+sudo tail -n 20 /var/log/kevin/project-deploy.log
+find /var/www/testapp -maxdepth 2 -printf '%M %u:%g %p\n' | head
 ```
 
 To list all configured projects and whether each site is enabled:
@@ -160,4 +178,5 @@ sudo kevin project-delete testapp --force
 - `project-enable` restores the `sites-enabled` symlink, then validates and reloads Nginx.
 - `project-disable` removes only the `sites-enabled` symlink, then validates and reloads Nginx.
 - `project-list` reads Kevin-managed Nginx site configs and reports `enabled` or `disabled`.
+- `project-deploy` syncs only from `/opt/kevin/staging/<project>/` into `/var/www/<project>/public/`, then reapplies `www-data:www-data`, `755` directories, and `644` files.
 - `project-delete` removes the site config and project files and requires `--force`.
