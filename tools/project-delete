@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN_BASE="alexlupu.dev"
+CONFIRM_FLAG="--force"
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "project-delete must run as root." >&2
+        exit 1
+    fi
+}
+
+validate_args() {
+    if [[ "$#" -ne 2 ]]; then
+        echo "Usage: project-delete <project-name> ${CONFIRM_FLAG}" >&2
+        exit 1
+    fi
+
+    PROJECT="$1"
+    CONFIRMATION="$2"
+
+    if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
+        exit 1
+    fi
+
+    if [[ "${CONFIRMATION}" != "${CONFIRM_FLAG}" ]]; then
+        echo "Refusing to delete without ${CONFIRM_FLAG}." >&2
+        exit 1
+    fi
+}
+
+prepare_paths() {
+    DOMAIN="${PROJECT}.${DOMAIN_BASE}"
+    PROJECT_ROOT="/var/www/${PROJECT}"
+    SITE_AVAILABLE="/etc/nginx/sites-available/${DOMAIN}"
+    SITE_ENABLED="/etc/nginx/sites-enabled/${DOMAIN}"
+    WAS_ENABLED="0"
+    BACKUP_DIR="$(mktemp -d /tmp/kevin-project-delete.XXXXXX)"
+    BACKUP_CONFIG="${BACKUP_DIR}/${DOMAIN}"
+}
+
+validate_prereqs() {
+    if [[ ! -d "${PROJECT_ROOT}" && ! -f "${SITE_AVAILABLE}" && ! -L "${SITE_ENABLED}" ]]; then
+        echo "No existing project assets found for ${PROJECT}." >&2
+        exit 1
+    fi
+
+    if [[ -e "${SITE_ENABLED}" && ! -L "${SITE_ENABLED}" ]]; then
+        echo "Refusing to remove unexpected non-symlink path: ${SITE_ENABLED}" >&2
+        exit 1
+    fi
+
+    if [[ -L "${SITE_ENABLED}" && "$(readlink -f "${SITE_ENABLED}")" != "${SITE_AVAILABLE}" ]]; then
+        echo "Refusing to delete unexpected symlink target: ${SITE_ENABLED}" >&2
+        exit 1
+    fi
+
+    if [[ -L "${SITE_ENABLED}" ]]; then
+        WAS_ENABLED="1"
+    fi
+}
+
+backup_nginx_config() {
+    if [[ -f "${SITE_AVAILABLE}" ]]; then
+        cp -p "${SITE_AVAILABLE}" "${BACKUP_CONFIG}"
+    fi
+}
+
+remove_nginx_config() {
+    rm -f "${SITE_ENABLED}"
+    rm -f "${SITE_AVAILABLE}"
+}
+
+validate_and_reload_nginx() {
+    nginx -t
+    systemctl reload nginx
+}
+
+restore_nginx_on_error() {
+    if [[ -f "${BACKUP_CONFIG}" ]]; then
+        cp -p "${BACKUP_CONFIG}" "${SITE_AVAILABLE}"
+    fi
+
+    if [[ "${WAS_ENABLED}" == "1" && -f "${SITE_AVAILABLE}" && ! -L "${SITE_ENABLED}" ]]; then
+        ln -s "${SITE_AVAILABLE}" "${SITE_ENABLED}"
+    fi
+}
+
+delete_project_files() {
+    if [[ -d "${PROJECT_ROOT}" ]]; then
+        rm -rf "${PROJECT_ROOT}"
+    fi
+}
+
+cleanup_backup() {
+    rm -rf "${BACKUP_DIR}"
+}
+
+main() {
+    require_root
+    validate_args "$@"
+    prepare_paths
+    trap cleanup_backup EXIT
+    validate_prereqs
+    backup_nginx_config
+    trap restore_nginx_on_error ERR
+    remove_nginx_config
+    validate_and_reload_nginx
+    trap - ERR
+    delete_project_files
+
+    cat <<EOF
+Project deleted successfully.
+- project: ${PROJECT}
+- domain: ${DOMAIN}
+- removed project root: ${PROJECT_ROOT}
+- removed config: ${SITE_AVAILABLE}
+EOF
+}
+
+main "$@"

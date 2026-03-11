@@ -16,6 +16,19 @@ Edit the source file in `tools/` and rerun its installer. Example:
 sudo bash bootstrap/20-install-server-update.sh
 ```
 
+To deploy the new site disable tool:
+
+```bash
+sudo bash bootstrap/35-install-project-disable.sh
+```
+
+To deploy the new site enable and delete tools:
+
+```bash
+sudo bash bootstrap/36-install-project-enable.sh
+sudo bash bootstrap/37-install-project-delete.sh
+```
+
 ## Rerun Full Bootstrap
 
 The bootstrap scripts are intended to be idempotent:
@@ -42,6 +55,33 @@ Then validate:
 ```bash
 sudo nginx -t
 curl -I https://testapp.alexlupu.dev
+```
+
+## Test Project Disable
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-disable testapp
+sudo nginx -t
+ls -l /etc/nginx/sites-available/testapp.alexlupu.dev
+test ! -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
+```
+
+## Test Project Enable
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-enable testapp
+sudo nginx -t
+test -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
+```
+
+## Test Project Delete
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-delete testapp --force
+sudo nginx -t
+test ! -e /etc/nginx/sites-available/testapp.alexlupu.dev
+test ! -e /etc/nginx/sites-enabled/testapp.alexlupu.dev
+test ! -d /var/www/testapp
 ```
 
 ## Inspect Logs

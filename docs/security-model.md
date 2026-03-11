@@ -12,4 +12,4 @@ Key decisions:
 
 This model is intentionally narrower than giving Kevin a shell with broad root powers. Audited scripts are easier to review, safer to rerun, and less likely to create accidental damage.
 
-Destructive tooling is excluded from v1. That includes project deletion, firewall resets, arbitrary service changes, and anything that would make rollback harder during early adoption.
+Kevin's approved root actions stay narrow and script-bound. Even destructive operations should require explicit confirmation, validate surrounding config before reload, and target only project-specific paths rather than broad system state.

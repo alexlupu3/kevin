@@ -9,10 +9,13 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Run a server health check
 - Run safe package maintenance
 - Provision a new PHP/Nginx project site
+- Re-enable a previously disabled project site
+- Disable an existing project site without deleting files
+- Delete an existing project site, config, and files with explicit confirmation
 - Run a practical vulnerability and hardening audit
 - Install a tightly scoped sudoers policy for Kevin
 
-Kevin is intentionally restricted. It does not get unrestricted sudo, raw root shell access, destructive project deletion, database provisioning, or DNS automation in v1.
+Kevin is intentionally restricted. It does not get unrestricted sudo, raw root shell access, database provisioning, or DNS automation in v1.
 
 ## Repo Layout
 
@@ -56,6 +59,9 @@ sudo bash bootstrap/00-kevin-birth.sh
 sudo bash bootstrap/10-install-server-check.sh
 sudo bash bootstrap/20-install-server-update.sh
 sudo bash bootstrap/30-install-project-create.sh
+sudo bash bootstrap/35-install-project-disable.sh
+sudo bash bootstrap/36-install-project-enable.sh
+sudo bash bootstrap/37-install-project-delete.sh
 sudo bash bootstrap/40-install-server-vuln-scan.sh
 sudo bash bootstrap/90-install-sudoers.sh
 ```
@@ -69,6 +75,9 @@ Examples:
 ```bash
 sudo bash bootstrap/10-install-server-check.sh
 sudo bash bootstrap/30-install-project-create.sh
+sudo bash bootstrap/35-install-project-disable.sh
+sudo bash bootstrap/36-install-project-enable.sh
+sudo bash bootstrap/37-install-project-delete.sh
 sudo bash bootstrap/90-install-sudoers.sh
 ```
 
@@ -98,8 +107,29 @@ sudo nginx -t
 curl -I https://testapp.alexlupu.dev
 ```
 
+To disable the site later while keeping its files and Nginx config in place:
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-disable testapp
+```
+
+To re-enable a previously disabled site:
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-enable testapp
+```
+
+To delete the site, config, and project files entirely:
+
+```bash
+sudo -u kevin sudo /opt/kevin/bin/project-delete testapp --force
+```
+
 ## Notes
 
 - Runtime tools are copied into `/opt/kevin/bin` and owned by `root:root`.
 - Sudoers is managed only through `bootstrap/90-install-sudoers.sh`.
 - The bootstrap can be rerun. It should converge to the same deployed state rather than drift.
+- `project-enable` restores the `sites-enabled` symlink, then validates and reloads Nginx.
+- `project-disable` removes only the `sites-enabled` symlink, then validates and reloads Nginx.
+- `project-delete` removes the site config and project files and requires `--force`.

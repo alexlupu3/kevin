@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN_BASE="alexlupu.dev"
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "project-enable must run as root." >&2
+        exit 1
+    fi
+}
+
+validate_args() {
+    if [[ "$#" -ne 1 ]]; then
+        echo "Usage: project-enable <project-name>" >&2
+        exit 1
+    fi
+
+    PROJECT="$1"
+
+    if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
+        exit 1
+    fi
+}
+
+prepare_paths() {
+    DOMAIN="${PROJECT}.${DOMAIN_BASE}"
+    SITE_AVAILABLE="/etc/nginx/sites-available/${DOMAIN}"
+    SITE_ENABLED="/etc/nginx/sites-enabled/${DOMAIN}"
+}
+
+validate_prereqs() {
+    if [[ ! -f "${SITE_AVAILABLE}" ]]; then
+        echo "Project config not found: ${SITE_AVAILABLE}" >&2
+        exit 1
+    fi
+
+    if [[ -L "${SITE_ENABLED}" ]]; then
+        echo "Project is already enabled: ${DOMAIN}" >&2
+        exit 1
+    fi
+
+    if [[ -e "${SITE_ENABLED}" ]]; then
+        echo "Refusing to overwrite existing path: ${SITE_ENABLED}" >&2
+        exit 1
+    fi
+}
+
+enable_site() {
+    ln -s "${SITE_AVAILABLE}" "${SITE_ENABLED}"
+}
+
+validate_and_reload_nginx() {
+    nginx -t
+    systemctl reload nginx
+}
+
+cleanup_on_error() {
+    rm -f "${SITE_ENABLED}"
+}
+
+main() {
+    require_root
+    validate_args "$@"
+    prepare_paths
+    validate_prereqs
+    trap cleanup_on_error ERR
+    enable_site
+    validate_and_reload_nginx
+    trap - ERR
+
+    cat <<EOF
+Project enabled successfully.
+- project: ${PROJECT}
+- domain: ${DOMAIN}
+- enabled config: ${SITE_ENABLED}
+EOF
+}
+
+main "$@"

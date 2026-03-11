@@ -45,6 +45,9 @@ Allowed tools:
 - `server-check`
 - `server-update`
 - `project-create`
+- `project-disable`
+- `project-enable`
+- `project-delete`
 - `server-vuln-scan`
 
 Not in scope for v1:
@@ -53,4 +56,3 @@ Not in scope for v1:
 - DNS automation
 - Database provisioning
 - MCP or Codex SDK runtime integration
-- Destructive project deletion
