@@ -1,0 +1,14 @@
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.log
+*.out
+*.tmp
+*.bak
+.bash_history
+.zsh_history
+tmp/
+coverage/

@@ -1,0 +1,16 @@
+# Architecture
+
+Kevin uses a split design:
+
+- This repository is the editable source of truth.
+- Runtime tools are deployed into `/opt/kevin/bin`.
+- Runtime templates are deployed into `/opt/kevin/templates`.
+- Runtime logs are written into `/var/log/kevin`.
+
+This separation keeps production execution stable even if the git checkout moves or is temporarily absent. It also makes updates explicit: edit source here, then rerun the relevant installer.
+
+Sudoers is centralized through one source file and one installer. That avoids permission drift and keeps Kevin's approved root actions auditable.
+
+Project creation uses a template so every site starts from the same Nginx conventions. This reduces one-off config edits and makes future hardening easier to apply consistently.
+
+The layout also leaves room for future Codex or controller-driven automation because the operational surface is already narrow, documented, and script-based.

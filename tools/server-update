@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_FILE="/var/log/kevin/server-update.log"
+
+if [[ "${EUID}" -ne 0 ]]; then
+    echo "server-update must run as root." >&2
+    exit 1
+fi
+
+install -d -o root -g root -m 750 /var/log/kevin
+touch "${LOG_FILE}"
+chown root:root "${LOG_FILE}"
+chmod 640 "${LOG_FILE}"
+
+exec > >(tee -a "${LOG_FILE}") 2>&1
+
+echo "[$(date -Is)] Starting server update"
+
+echo
+echo "Running apt-get update"
+apt-get update
+
+echo
+echo "Upgradable packages"
+apt-get --just-print upgrade | sed -n '/^Inst /p' || true
+
+echo
+echo "Running apt-get upgrade -y"
+apt-get upgrade -y
+
+echo
+echo "Running apt-get autoremove -y"
+apt-get autoremove -y
+
+echo
+echo "Running apt-get autoclean -y"
+apt-get autoclean -y
+
+echo
+echo "[$(date -Is)] Server update complete"

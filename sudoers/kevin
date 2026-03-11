@@ -1,0 +1,6 @@
+Defaults:kevin secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-check
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-update
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-create
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-vuln-scan

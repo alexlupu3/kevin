@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN_BASE="alexlupu.dev"
+PHP_FPM_SOCKET="/run/php/php8.3-fpm.sock"
+SSL_CERT="/etc/letsencrypt/live/alexlupu.dev/fullchain.pem"
+SSL_KEY="/etc/letsencrypt/live/alexlupu.dev/privkey.pem"
+TEMPLATE_PATH="/opt/kevin/templates/nginx-php-site.conf.tpl"
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "project-create must run as root." >&2
+        exit 1
+    fi
+}
+
+validate_args() {
+    if [[ "$#" -ne 1 ]]; then
+        echo "Usage: project-create <project-name>" >&2
+        exit 1
+    fi
+
+    PROJECT="$1"
+
+    if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
+        exit 1
+    fi
+}
+
+prepare_paths() {
+    DOMAIN="${PROJECT}.${DOMAIN_BASE}"
+    WEB_ROOT="/var/www/${PROJECT}/public"
+    SITE_AVAILABLE="/etc/nginx/sites-available/${DOMAIN}"
+    SITE_ENABLED="/etc/nginx/sites-enabled/${DOMAIN}"
+}
+
+validate_prereqs() {
+    if [[ ! -f "${TEMPLATE_PATH}" ]]; then
+        echo "Template not found: ${TEMPLATE_PATH}" >&2
+        exit 1
+    fi
+
+    if [[ -e "${WEB_ROOT}" || -e "${SITE_AVAILABLE}" || -L "${SITE_ENABLED}" ]]; then
+        echo "Refusing to overwrite existing project assets for ${PROJECT}." >&2
+        exit 1
+    fi
+
+    if [[ ! -S "${PHP_FPM_SOCKET}" ]]; then
+        echo "PHP-FPM socket not found: ${PHP_FPM_SOCKET}" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${SSL_CERT}" || ! -f "${SSL_KEY}" ]]; then
+        echo "Wildcard certificate files are missing." >&2
+        exit 1
+    fi
+}
+
+create_project_tree() {
+    install -d -o www-data -g www-data -m 755 "/var/www/${PROJECT}"
+    install -d -o www-data -g www-data -m 755 "${WEB_ROOT}"
+
+    cat > "${WEB_ROOT}/index.php" <<EOF
+<?php
+header('Content-Type: text/plain; charset=utf-8');
+echo "Project ${PROJECT} is live on ${DOMAIN}\n";
+EOF
+
+    chown www-data:www-data "${WEB_ROOT}/index.php"
+    chmod 644 "${WEB_ROOT}/index.php"
+}
+
+render_nginx_config() {
+    sed \
+        -e "s|{{PROJECT}}|${PROJECT}|g" \
+        -e "s|{{DOMAIN}}|${DOMAIN}|g" \
+        -e "s|{{WEB_ROOT}}|${WEB_ROOT}|g" \
+        -e "s|{{SSL_CERT}}|${SSL_CERT}|g" \
+        -e "s|{{SSL_KEY}}|${SSL_KEY}|g" \
+        -e "s|{{PHP_FPM_SOCKET}}|${PHP_FPM_SOCKET}|g" \
+        "${TEMPLATE_PATH}" > "${SITE_AVAILABLE}"
+
+    ln -s "${SITE_AVAILABLE}" "${SITE_ENABLED}"
+}
+
+validate_and_reload_nginx() {
+    nginx -t
+    systemctl reload nginx
+}
+
+cleanup_on_error() {
+    rm -f "${SITE_ENABLED}" "${SITE_AVAILABLE}"
+}
+
+main() {
+    require_root
+    validate_args "$@"
+    prepare_paths
+    validate_prereqs
+    trap cleanup_on_error ERR
+    create_project_tree
+    render_nginx_config
+    validate_and_reload_nginx
+    trap - ERR
+
+    cat <<EOF
+Project created successfully.
+- project: ${PROJECT}
+- domain: ${DOMAIN}
+- web root: ${WEB_ROOT}
+EOF
+}
+
+main "$@"
