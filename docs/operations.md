@@ -5,7 +5,7 @@
 Run the full bootstrap from the repository root:
 
 ```bash
-sudo KEVIN_PUBKEY_FILE=/path/to/kevin.pub bash bootstrap/99-bootstrap-all.sh
+sudo KEVIN_PUBKEY_FILE=/path/to/kevin.pub KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
 ```
 
 ## Update One Tool
@@ -34,7 +34,7 @@ sudo bash bootstrap/37-install-project-delete.sh
 The bootstrap scripts are intended to be idempotent:
 
 ```bash
-sudo bash bootstrap/99-bootstrap-all.sh
+sudo KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
 ```
 
 ## Check Kevin's Sudo Access
@@ -47,7 +47,7 @@ sudo -u kevin sudo -l
 ## Test Project Creation
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-create testapp
+sudo kevin project-create testapp
 ```
 
 Then validate:
@@ -60,7 +60,7 @@ curl -I https://testapp.alexlupu.dev
 ## Test Project Disable
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-disable testapp
+sudo kevin project-disable testapp
 sudo nginx -t
 ls -l /etc/nginx/sites-available/testapp.alexlupu.dev
 test ! -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
@@ -69,7 +69,7 @@ test ! -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
 ## Test Project Enable
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-enable testapp
+sudo kevin project-enable testapp
 sudo nginx -t
 test -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
 ```
@@ -77,7 +77,7 @@ test -L /etc/nginx/sites-enabled/testapp.alexlupu.dev
 ## Test Project Delete
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-delete testapp --force
+sudo kevin project-delete testapp --force
 sudo nginx -t
 test ! -e /etc/nginx/sites-available/testapp.alexlupu.dev
 test ! -e /etc/nginx/sites-enabled/testapp.alexlupu.dev

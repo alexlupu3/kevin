@@ -24,11 +24,11 @@ Bootstrap complete.
 Suggested verification:
   id kevin
   sudo -l -U kevin
-  sudo -u kevin sudo /opt/kevin/bin/server-check
-  sudo -u kevin sudo /opt/kevin/bin/server-update
-  sudo -u kevin sudo /opt/kevin/bin/server-vuln-scan
-  sudo -u kevin sudo /opt/kevin/bin/project-create testapp
-  sudo -u kevin sudo /opt/kevin/bin/project-disable testapp
-  sudo -u kevin sudo /opt/kevin/bin/project-enable testapp
-  sudo -u kevin sudo /opt/kevin/bin/project-delete testapp --force
+  sudo kevin server-check
+  sudo kevin server-update
+  sudo kevin server-vuln-scan
+  sudo kevin project-create testapp
+  sudo kevin project-disable testapp
+  sudo kevin project-enable testapp
+  sudo kevin project-delete testapp --force
 EOF

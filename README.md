@@ -43,19 +43,26 @@ docs/       Architecture, security, conventions, and operations notes
 From inside this repository:
 
 ```bash
-sudo KEVIN_PUBKEY_FILE=/path/to/kevin.pub bash bootstrap/99-bootstrap-all.sh
+sudo KEVIN_PUBKEY_FILE=/path/to/kevin.pub KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
 ```
 
 Or provide the public key directly:
 
 ```bash
-sudo KEVIN_PUBKEY="ssh-ed25519 AAAA..." bash bootstrap/99-bootstrap-all.sh
+sudo KEVIN_PUBKEY="ssh-ed25519 AAAA..." KEVIN_INSTALL_CLI=y bash bootstrap/99-bootstrap-all.sh
+```
+
+`KEVIN_INSTALL_CLI=y` is optional. When set, Kevin also installs a wrapper at `/usr/local/bin/kevin` so you can run:
+
+```bash
+sudo kevin server-check
+kevin project-create testapp
 ```
 
 If you want to install pieces one at a time:
 
 ```bash
-sudo bash bootstrap/00-kevin-birth.sh
+sudo KEVIN_INSTALL_CLI=y bash bootstrap/00-kevin-birth.sh
 sudo bash bootstrap/10-install-server-check.sh
 sudo bash bootstrap/20-install-server-update.sh
 sudo bash bootstrap/30-install-project-create.sh
@@ -88,15 +95,15 @@ Run these checks after bootstrap:
 ```bash
 id kevin
 sudo -l -U kevin
-sudo -u kevin sudo /opt/kevin/bin/server-check
-sudo -u kevin sudo /opt/kevin/bin/server-update
-sudo -u kevin sudo /opt/kevin/bin/server-vuln-scan
+sudo kevin server-check
+sudo kevin server-update
+sudo kevin server-vuln-scan
 ```
 
 To test project provisioning:
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-create testapp
+sudo kevin project-create testapp
 ```
 
 Then confirm:
@@ -110,24 +117,25 @@ curl -I https://testapp.alexlupu.dev
 To disable the site later while keeping its files and Nginx config in place:
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-disable testapp
+sudo kevin project-disable testapp
 ```
 
 To re-enable a previously disabled site:
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-enable testapp
+sudo kevin project-enable testapp
 ```
 
 To delete the site, config, and project files entirely:
 
 ```bash
-sudo -u kevin sudo /opt/kevin/bin/project-delete testapp --force
+sudo kevin project-delete testapp --force
 ```
 
 ## Notes
 
 - Runtime tools are copied into `/opt/kevin/bin` and owned by `root:root`.
+- The optional `kevin` CLI wrapper is installed at `/usr/local/bin/kevin` by `bootstrap/00-kevin-birth.sh` when `KEVIN_INSTALL_CLI=y`.
 - Sudoers is managed only through `bootstrap/90-install-sudoers.sh`.
 - The bootstrap can be rerun. It should converge to the same deployed state rather than drift.
 - `project-enable` restores the `sites-enabled` symlink, then validates and reloads Nginx.
