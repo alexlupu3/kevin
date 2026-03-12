@@ -29,6 +29,12 @@ sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
 ```
 
+To deploy the Laravel post-deploy setup tool:
+
+```bash
+sudo bash bootstrap/38-install-project-setup.sh
+```
+
 To deploy the project deployment tool:
 
 ```bash
@@ -91,6 +97,16 @@ test -f /var/log/kevin/project-deploy.log
 find /var/www/testapp/public -printf '%M %u:%g %p\n' | head
 ```
 
+## Test Project Setup
+
+Use this only for Laravel projects after `project-deploy`:
+
+```bash
+sudo kevin project-setup testapp
+test -f /var/log/kevin/project-setup.log
+test -d /var/www/testapp/public/bootstrap/cache
+```
+
 ## Test Project List
 
 ```bash
@@ -129,6 +145,7 @@ test ! -d /var/www/testapp
 ```bash
 sudo ls -lah /var/log/kevin
 sudo tail -n 100 /var/log/kevin/project-deploy.log
+sudo tail -n 100 /var/log/kevin/project-setup.log
 sudo tail -n 100 /var/log/kevin/server-update.log
 sudo tail -n 100 /var/log/kevin/server-vuln-scan-*.log
 ```

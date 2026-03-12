@@ -11,6 +11,7 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Run safe package maintenance
 - Provision a new PHP/Nginx project site
 - Deploy staged project files from `/opt/kevin/staging/<project>/` into the live web root
+- Run Laravel post-deploy bootstrap tasks in the live web root
 - List existing PHP/Nginx project sites and whether they are enabled
 - Re-enable a previously disabled project site
 - Disable an existing project site without deleting files
@@ -77,6 +78,7 @@ sudo bash bootstrap/34-install-project-deploy.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
+sudo bash bootstrap/38-install-project-setup.sh
 sudo bash bootstrap/40-install-server-vuln-scan.sh
 sudo bash bootstrap/90-install-sudoers.sh
 ```
@@ -96,6 +98,7 @@ sudo bash bootstrap/34-install-project-deploy.sh
 sudo bash bootstrap/35-install-project-disable.sh
 sudo bash bootstrap/36-install-project-enable.sh
 sudo bash bootstrap/37-install-project-delete.sh
+sudo bash bootstrap/38-install-project-setup.sh
 sudo bash bootstrap/90-install-sudoers.sh
 ```
 
@@ -144,6 +147,20 @@ sudo tail -n 20 /var/log/kevin/project-deploy.log
 find /var/www/testapp -maxdepth 2 -printf '%M %u:%g %p\n' | head
 ```
 
+For a Laravel app, run the post-deploy setup after `project-deploy`:
+
+```bash
+sudo kevin project-setup testapp
+```
+
+Then confirm:
+
+```bash
+sudo tail -n 20 /var/log/kevin/project-setup.log
+test -f /var/www/testapp/public/bootstrap/cache/config.php
+test -L /var/www/testapp/public/public/storage
+```
+
 To list all configured projects and whether each site is enabled:
 
 ```bash
@@ -180,3 +197,4 @@ sudo kevin project-delete testapp --force
 - `project-list` reads Kevin-managed Nginx site configs and reports `enabled` or `disabled`.
 - `project-deploy` syncs only from `/opt/kevin/staging/<project>/` into `/var/www/<project>/public/`, then reapplies `www-data:www-data`, `755` directories, and `644` files.
 - `project-delete` removes the site config and project files and requires `--force`.
+- `project-setup` runs Laravel bootstrap tasks as `www-data` inside `/var/www/<project>/public` and logs to `/var/log/kevin/project-setup.log`.

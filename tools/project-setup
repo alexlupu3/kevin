@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# project-setup <project-name>
+# Runs Laravel post-deploy bootstrap as www-data in /var/www/<project>/public
+set -euo pipefail
+
+LOG_DIR="/var/log/kevin"
+LOG_FILE="${LOG_DIR}/project-setup.log"
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "project-setup must run as root." >&2
+        exit 1
+    fi
+}
+
+validate_args() {
+    if [[ "$#" -ne 1 ]]; then
+        echo "Usage: project-setup <project-name>" >&2
+        exit 1
+    fi
+
+    PROJECT="$1"
+
+    if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
+        exit 1
+    fi
+}
+
+prepare_paths() {
+    APP_DIR="/var/www/${PROJECT}/public"
+}
+
+validate_project() {
+    if [[ ! -d "${APP_DIR}" ]]; then
+        echo "ERROR: ${APP_DIR} does not exist. Run project-deploy first." >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${APP_DIR}/artisan" ]]; then
+        echo "ERROR: ${APP_DIR}/artisan not found. Is this a Laravel project?" >&2
+        exit 1
+    fi
+}
+
+prepare_logging() {
+    install -d -o root -g root -m 750 "${LOG_DIR}"
+    touch "${LOG_FILE}"
+    chown root:root "${LOG_FILE}"
+    chmod 640 "${LOG_FILE}"
+    exec > >(tee -a "${LOG_FILE}") 2>&1
+}
+
+main() {
+    require_root
+    validate_args "$@"
+    prepare_paths
+    validate_project
+    prepare_logging
+
+    echo "[$(date -Is)] Starting Laravel bootstrap for: ${PROJECT}"
+    echo "App dir: ${APP_DIR}"
+
+    # Create bootstrap/cache if missing
+    sudo -u www-data mkdir -p "${APP_DIR}/bootstrap/cache"
+
+    # Run artisan commands as www-data
+    sudo -u www-data php "${APP_DIR}/artisan" key:generate --force
+    sudo -u www-data php "${APP_DIR}/artisan" storage:link --force
+    sudo -u www-data php "${APP_DIR}/artisan" migrate --force
+    sudo -u www-data php "${APP_DIR}/artisan" db:seed --force
+    sudo -u www-data php "${APP_DIR}/artisan" config:cache
+    sudo -u www-data php "${APP_DIR}/artisan" route:cache
+
+    echo "[$(date -Is)] project-setup complete for: ${PROJECT}"
+}
+
+main "$@"

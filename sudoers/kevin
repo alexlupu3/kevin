@@ -7,4 +7,5 @@ kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-deploy
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-disable
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-enable
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-delete
+kevin ALL=(root) NOPASSWD: /opt/kevin/bin/project-setup
 kevin ALL=(root) NOPASSWD: /opt/kevin/bin/server-vuln-scan

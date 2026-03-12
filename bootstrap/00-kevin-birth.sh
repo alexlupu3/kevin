@@ -93,6 +93,7 @@ Allowed commands:
   server-update
   project-create
   project-deploy
+  project-setup
   project-list
   project-disable
   project-enable
@@ -113,7 +114,7 @@ command_path() {
         help|-h|--help)
             printf '/opt/kevin/bin/help\n'
             ;;
-        server-check|server-update|project-create|project-deploy|project-list|project-disable|project-enable|project-delete|server-vuln-scan)
+        server-check|server-update|project-create|project-deploy|project-setup|project-list|project-disable|project-enable|project-delete|server-vuln-scan)
             printf '/opt/kevin/bin/%s\n' "$1"
             ;;
         *)

@@ -17,6 +17,8 @@ Application content is staged in `/opt/kevin/staging/<project>` and then deploye
 
 `project-deploy` treats the staging directory as the source of truth for the live web root. After sync, Kevin reapplies `www-data:www-data`, `755` on directories, and `644` on files so reruns converge cleanly.
 
+Laravel-specific bootstrap is handled separately by `project-setup` after deployment. That tool operates only in `/var/www/<project>/public`, requires a detectable `artisan` file, and runs framework setup commands as `www-data`.
+
 Disabling a project removes only the `sites-enabled` symlink. The rendered config in `sites-available` and the project files under `/var/www/<project>` remain in place for manual review or future re-enablement.
 
 Re-enabling a project restores the `sites-enabled` symlink to the existing config in `sites-available`.

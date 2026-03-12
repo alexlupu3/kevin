@@ -49,6 +49,7 @@ Allowed tools:
 - `server-update`
 - `project-create`
 - `project-deploy`
+- `project-setup`
 - `project-disable`
 - `project-enable`
 - `project-delete`

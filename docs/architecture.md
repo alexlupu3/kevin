@@ -16,4 +16,6 @@ Project creation uses a template so every site starts from the same Nginx conven
 
 Deployments are intentionally narrowed to one approved path: staged content under `/opt/kevin/staging/<project>` is promoted into `/var/www/<project>/public` by `project-deploy`. This keeps Kevin away from arbitrary source and destination inputs and makes live content changes auditable through one tool and one log.
 
+For Laravel apps, `project-setup` is a distinct post-deploy step that runs in the already-approved live web root as `www-data`. Keeping that bootstrap separate from `project-deploy` preserves a narrow deployment primitive while still allowing framework-specific setup to be rerun and audited through its own log.
+
 The layout also leaves room for future Codex or controller-driven automation because the operational surface is already narrow, documented, and script-based.
