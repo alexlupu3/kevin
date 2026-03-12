@@ -67,6 +67,7 @@ main() {
     # Run artisan commands as www-data
     sudo -u www-data php "${APP_DIR}/artisan" key:generate --force
     sudo -u www-data php "${APP_DIR}/artisan" storage:link --force
+    sudo -u www-data php "${APP_DIR}/artisan" config:clear
     sudo -u www-data php "${APP_DIR}/artisan" migrate --force
     sudo -u www-data php "${APP_DIR}/artisan" db:seed --force
     sudo -u www-data php "${APP_DIR}/artisan" config:cache
