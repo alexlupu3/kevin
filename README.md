@@ -181,6 +181,14 @@ sudo kevin project-setup testapp node-api \
   --api-location /api/
 ```
 
+If the API uses Node from an NVM install instead of a system-wide binary, pass the absolute `node` path and let `project-setup` restart the service:
+
+```bash
+sudo kevin project-setup info-bisericabetel node-api \
+  --node-bin /home/kevin/.nvm/versions/node/v24.14.0/bin/node \
+  --start-service
+```
+
 To list all configured projects and whether each site is enabled:
 
 ```bash
@@ -217,4 +225,4 @@ sudo kevin project-delete testapp --force
 - `project-list` reads Kevin-managed Nginx site configs and reports `enabled` or `disabled`.
 - `project-deploy` syncs only from `/opt/kevin/staging/<project>/` into `/var/www/<project>/public/`, then reapplies `www-data:www-data`, `755` directories, and `644` files.
 - `project-delete` removes the site config and project files and requires `--force`.
-- `project-setup` supports bounded setup profiles. The default `laravel` profile runs framework bootstrap tasks as `www-data` inside `/var/www/<project>/public`. The `node-api` profile provisions PostgreSQL, uploads storage, Nginx, a systemd unit, and a staged `.env` file using root-owned templates and validated arguments.
+- `project-setup` supports bounded setup profiles. The default `laravel` profile runs framework bootstrap tasks as `www-data` inside `/var/www/<project>/public`. The `node-api` profile provisions PostgreSQL, uploads storage, Nginx, a systemd unit, and a staged `.env` file using root-owned templates and validated arguments. It can also pin the service to a validated absolute Node binary path with `--node-bin` and restart the service with `--start-service`.

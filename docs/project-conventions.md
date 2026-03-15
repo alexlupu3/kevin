@@ -19,7 +19,7 @@ Application content is staged in `/opt/kevin/staging/<project>` and then deploye
 
 Laravel-specific bootstrap is handled separately by `project-setup` after deployment. In its default `laravel` profile, the tool operates only in `/var/www/<project>/public`, requires a detectable `artisan` file, and runs framework setup commands as `www-data`.
 
-For staged Node services, `project-setup <project> node-api` provisions a bounded set of root actions: PostgreSQL role and database creation, uploads directory creation, Nginx reverse-proxy rendering from a root-owned template, systemd unit rendering from a root-owned template, and `.env` creation inside the staged app directory. It does not execute project-owned shell scripts from staging as root.
+For staged Node services, `project-setup <project> node-api` provisions a bounded set of root actions: PostgreSQL role and database creation, uploads directory creation, Nginx reverse-proxy rendering from a root-owned template, systemd unit rendering from a root-owned template, and `.env` creation inside the staged app directory. It does not execute project-owned shell scripts from staging as root. When the API needs an NVM-managed runtime, pass a validated absolute binary path with `--node-bin` instead of creating ad hoc `systemd` drop-ins under `/etc/systemd/system/*.service.d`.
 
 Disabling a project removes only the `sites-enabled` symlink. The rendered config in `sites-available` and the project files under `/var/www/<project>` remain in place for manual review or future re-enablement.
 

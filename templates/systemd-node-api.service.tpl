@@ -9,7 +9,7 @@ User={{API_USER}}
 Group=www-data
 WorkingDirectory={{APP_DIR}}
 EnvironmentFile={{ENV_FILE}}
-ExecStart=/usr/bin/env node {{ENTRYPOINT}}
+ExecStart={{NODE_COMMAND}} {{ENTRYPOINT}}
 Restart=always
 RestartSec=5
 

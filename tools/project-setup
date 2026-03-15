@@ -31,6 +31,8 @@ node-api options:
   --port <port>             Local API listen port (default: 3100)
   --entrypoint <path>       Node entrypoint relative to app dir (default: dist/server.js)
   --api-location <path>     Nginx location to proxy (default: /api/)
+  --node-bin <path>         Absolute path to the node binary (default: use /usr/bin/env node)
+  --start-service           Restart the API service after setup and print its status
 EOF
 }
 
@@ -59,6 +61,16 @@ validate_relative_path() {
 
     if [[ "${value}" = /* || "${value}" == *".."* ]]; then
         echo "${label} must stay within the project staging tree." >&2
+        exit 1
+    fi
+}
+
+validate_absolute_path() {
+    local value="$1"
+    local label="$2"
+
+    if [[ -z "${value}" || "${value}" != /* || "${value}" == *".."* ]]; then
+        echo "${label} must be an absolute path." >&2
         exit 1
     fi
 }
@@ -104,6 +116,8 @@ parse_args() {
     PORT="3100"
     ENTRYPOINT="dist/server.js"
     API_LOCATION="/api/"
+    NODE_BIN=""
+    START_SERVICE="0"
 
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
@@ -139,6 +153,14 @@ parse_args() {
                 API_LOCATION="${2:-}"
                 shift 2
                 ;;
+            --node-bin)
+                NODE_BIN="${2:-}"
+                shift 2
+                ;;
+            --start-service)
+                START_SERVICE="1"
+                shift
+                ;;
             *)
                 echo "Unknown option: $1" >&2
                 usage >&2
@@ -153,6 +175,10 @@ parse_args() {
     validate_simple_name "${API_USER}" "--api-user"
     validate_simple_name "${DB_NAME}" "--db-name"
     validate_simple_name "${DB_USER}" "--db-user"
+
+    if [[ -n "${NODE_BIN}" ]]; then
+        validate_absolute_path "${NODE_BIN}" "--node-bin"
+    fi
 
     if [[ ! "${PORT}" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
         echo "--port must be between 1 and 65535." >&2
@@ -180,6 +206,11 @@ prepare_paths() {
     NODE_ENTRYPOINT="${NODE_APP_DIR}/${ENTRYPOINT}"
     ENV_FILE="${NODE_APP_DIR}/.env"
     SERVICE_UNIT="/etc/systemd/system/${SERVICE_NAME}.service"
+    if [[ -n "${NODE_BIN}" ]]; then
+        NODE_COMMAND="${NODE_BIN}"
+    else
+        NODE_COMMAND="/usr/bin/env node"
+    fi
 }
 
 prepare_logging() {
@@ -309,6 +340,7 @@ render_template() {
         -e "s|{{APP_DIR}}|${NODE_APP_DIR}|g" \
         -e "s|{{ENV_FILE}}|${ENV_FILE}|g" \
         -e "s|{{ENTRYPOINT}}|${NODE_ENTRYPOINT}|g" \
+        -e "s|{{NODE_COMMAND}}|${NODE_COMMAND}|g" \
         "${template_path}" > "${destination}"
 }
 
@@ -330,6 +362,11 @@ configure_systemd() {
 
     systemctl daemon-reload
     systemctl enable "${SERVICE_NAME}"
+}
+
+start_service() {
+    systemctl restart "${SERVICE_NAME}"
+    systemctl --no-pager --full status "${SERVICE_NAME}"
 }
 
 write_env_file() {
@@ -365,11 +402,17 @@ run_node_api_setup() {
         exit 1
     fi
 
+    if [[ -n "${NODE_BIN}" ]] && [[ ! -x "${NODE_BIN}" ]]; then
+        echo "Node binary is not executable: ${NODE_BIN}" >&2
+        exit 1
+    fi
+
     echo "[$(date -Is)] Starting Node API setup for: ${PROJECT}"
     echo "App dir: ${NODE_APP_DIR}"
     echo "Service: ${SERVICE_NAME}"
     echo "Database: ${DB_NAME}"
     echo "Database user: ${DB_USER}"
+    echo "Node command: ${NODE_COMMAND}"
 
     ensure_api_user
     setup_postgres
@@ -379,12 +422,20 @@ run_node_api_setup() {
     configure_nginx
     configure_systemd
 
+    if [[ "${START_SERVICE}" = "1" ]]; then
+        start_service
+    fi
+
     echo
     echo "Next steps:"
     echo "  1. If Node.js is not already installed, provision it separately before starting ${SERVICE_NAME}."
     echo "  2. Review ${ENV_FILE} if you need non-default values."
     echo "  3. Run migrations from ${NODE_APP_DIR} if the app requires them."
-    echo "  4. Start the API with: systemctl start ${SERVICE_NAME}"
+    if [[ "${START_SERVICE}" = "1" ]]; then
+        echo "  4. The API service was restarted as part of setup."
+    else
+        echo "  4. Start the API with: sudo kevin project-setup ${PROJECT} node-api --start-service"
+    fi
     echo
     echo "[$(date -Is)] project-setup complete for: ${PROJECT} (node-api)"
 }

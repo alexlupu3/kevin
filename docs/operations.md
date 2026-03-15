@@ -116,6 +116,16 @@ test -f /etc/systemd/system/testapp-api.service
 sudo systemctl status testapp-api --no-pager
 ```
 
+If the API must use a Node binary from Kevin's NVM install, keep that path inside the bounded setup flow:
+
+```bash
+sudo kevin project-setup info-bisericabetel node-api \
+  --node-bin /home/kevin/.nvm/versions/node/v24.14.0/bin/node \
+  --start-service
+test -f /etc/systemd/system/info-bisericabetel-api.service
+sudo systemctl status info-bisericabetel-api --no-pager
+```
+
 ## Test Project List
 
 ```bash
