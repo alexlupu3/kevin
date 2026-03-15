@@ -10,7 +10,12 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 install -d -o root -g root -m 755 /opt/kevin/bin
+install -d -o root -g root -m 755 /opt/kevin/templates
 install -o root -g root -m 755 "${REPO_ROOT}/tools/project-setup" /opt/kevin/bin/project-setup
+install -o root -g root -m 644 "${REPO_ROOT}/templates/nginx-node-api-site.conf.tpl" /opt/kevin/templates/nginx-node-api-site.conf.tpl
+install -o root -g root -m 644 "${REPO_ROOT}/templates/systemd-node-api.service.tpl" /opt/kevin/templates/systemd-node-api.service.tpl
 
 echo "Installed /opt/kevin/bin/project-setup"
+echo "Installed /opt/kevin/templates/nginx-node-api-site.conf.tpl"
+echo "Installed /opt/kevin/templates/systemd-node-api.service.tpl"
 echo "Test with: sudo /opt/kevin/bin/project-setup <project-name>"

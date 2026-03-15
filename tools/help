@@ -9,7 +9,7 @@ Kevin available commands:
   server-update       Run safe package maintenance
   project-create      Create a new PHP/Nginx project site
   project-deploy      Deploy staged project files into the live web root
-  project-setup       Run Laravel post-deploy bootstrap tasks
+  project-setup       Run setup profiles such as Laravel bootstrap or Node API provisioning
   project-list        List projects and whether they are enabled or disabled
   project-disable     Disable a project without deleting files
   project-enable      Re-enable a previously disabled project

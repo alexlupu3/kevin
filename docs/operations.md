@@ -99,12 +99,21 @@ find /var/www/testapp/public -printf '%M %u:%g %p\n' | head
 
 ## Test Project Setup
 
-Use this only for Laravel projects after `project-deploy`:
+Use this for Laravel projects after `project-deploy`:
 
 ```bash
 sudo kevin project-setup testapp
 test -f /var/log/kevin/project-setup.log
 test -d /var/www/testapp/public/bootstrap/cache
+```
+
+For a staged Node API under `/opt/kevin/staging/testapp/api` with entrypoint `dist/server.js`:
+
+```bash
+sudo kevin project-setup testapp node-api
+test -f /var/log/kevin/project-setup.log
+test -f /etc/systemd/system/testapp-api.service
+sudo systemctl status testapp-api --no-pager
 ```
 
 ## Test Project List

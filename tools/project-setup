@@ -1,10 +1,38 @@
 #!/usr/bin/env bash
-# project-setup <project-name>
-# Runs Laravel post-deploy bootstrap as www-data in /var/www/<project>/public
+# project-setup <project-name> [profile] [options]
 set -euo pipefail
 
 LOG_DIR="/var/log/kevin"
 LOG_FILE="${LOG_DIR}/project-setup.log"
+STAGING_BASE="/opt/kevin/staging"
+WEB_ROOT_BASE="/var/www"
+DOMAIN_BASE="alexlupu.dev"
+NODE_API_NGINX_TEMPLATE="/opt/kevin/templates/nginx-node-api-site.conf.tpl"
+NODE_API_SERVICE_TEMPLATE="/opt/kevin/templates/systemd-node-api.service.tpl"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  project-setup <project-name>
+  project-setup <project-name> laravel
+  project-setup <project-name> node-api [options]
+
+Profiles:
+  laravel   Run Laravel bootstrap in /var/www/<project>/public
+  node-api  Provision a staged Node API, PostgreSQL database, uploads path,
+            Nginx reverse proxy, systemd unit, and .env file
+
+node-api options:
+  --app-subdir <path>       App path under staging (default: api)
+  --service-name <name>     systemd unit base name (default: <project>-api)
+  --api-user <user>         System user for the API service (default: <project>-api)
+  --db-name <name>          PostgreSQL database name (default: <project with - as _>)
+  --db-user <name>          PostgreSQL role name (default: <db-name>_api)
+  --port <port>             Local API listen port (default: 3100)
+  --entrypoint <path>       Node entrypoint relative to app dir (default: dist/server.js)
+  --api-location <path>     Nginx location to proxy (default: /api/)
+EOF
+}
 
 require_root() {
     if [[ "${EUID}" -ne 0 ]]; then
@@ -13,34 +41,145 @@ require_root() {
     fi
 }
 
-validate_args() {
-    if [[ "$#" -ne 1 ]]; then
-        echo "Usage: project-setup <project-name>" >&2
-        exit 1
-    fi
-
-    PROJECT="$1"
-
+validate_project_name() {
     if [[ ! "${PROJECT}" =~ ^[a-z0-9-]+$ ]]; then
         echo "Project name must contain only lowercase letters, digits, and hyphens." >&2
         exit 1
     fi
 }
 
-prepare_paths() {
-    APP_DIR="/var/www/${PROJECT}/public"
+validate_relative_path() {
+    local value="$1"
+    local label="$2"
+
+    if [[ -z "${value}" ]]; then
+        echo "${label} cannot be empty." >&2
+        exit 1
+    fi
+
+    if [[ "${value}" = /* || "${value}" == *".."* ]]; then
+        echo "${label} must stay within the project staging tree." >&2
+        exit 1
+    fi
 }
 
-validate_project() {
-    if [[ ! -d "${APP_DIR}" ]]; then
-        echo "ERROR: ${APP_DIR} does not exist. Run project-deploy first." >&2
+validate_simple_name() {
+    local value="$1"
+    local label="$2"
+
+    if [[ ! "${value}" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+        echo "${label} contains unsupported characters." >&2
+        exit 1
+    fi
+}
+
+parse_args() {
+    if [[ "$#" -lt 1 ]]; then
+        usage >&2
         exit 1
     fi
 
-    if [[ ! -f "${APP_DIR}/artisan" ]]; then
-        echo "ERROR: ${APP_DIR}/artisan not found. Is this a Laravel project?" >&2
+    PROJECT="$1"
+    shift
+    validate_project_name
+
+    PROFILE="laravel"
+    if [[ "$#" -gt 0 ]] && [[ "$1" != --* ]]; then
+        PROFILE="$1"
+        shift
+    fi
+
+    if [[ "${PROFILE}" != "laravel" && "${PROFILE}" != "node-api" ]]; then
+        echo "Unknown profile: ${PROFILE}" >&2
+        usage >&2
         exit 1
     fi
+
+    PROJECT_IDENT="${PROJECT//-/_}"
+    APP_SUBDIR="api"
+    SERVICE_NAME="${PROJECT}-api"
+    API_USER="${PROJECT}-api"
+    DB_NAME="${PROJECT_IDENT}"
+    DB_USER="${PROJECT_IDENT}_api"
+    PORT="3100"
+    ENTRYPOINT="dist/server.js"
+    API_LOCATION="/api/"
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --app-subdir)
+                APP_SUBDIR="${2:-}"
+                shift 2
+                ;;
+            --service-name)
+                SERVICE_NAME="${2:-}"
+                shift 2
+                ;;
+            --api-user)
+                API_USER="${2:-}"
+                shift 2
+                ;;
+            --db-name)
+                DB_NAME="${2:-}"
+                shift 2
+                ;;
+            --db-user)
+                DB_USER="${2:-}"
+                shift 2
+                ;;
+            --port)
+                PORT="${2:-}"
+                shift 2
+                ;;
+            --entrypoint)
+                ENTRYPOINT="${2:-}"
+                shift 2
+                ;;
+            --api-location)
+                API_LOCATION="${2:-}"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    validate_relative_path "${APP_SUBDIR}" "--app-subdir"
+    validate_relative_path "${ENTRYPOINT}" "--entrypoint"
+    validate_simple_name "${SERVICE_NAME}" "--service-name"
+    validate_simple_name "${API_USER}" "--api-user"
+    validate_simple_name "${DB_NAME}" "--db-name"
+    validate_simple_name "${DB_USER}" "--db-user"
+
+    if [[ ! "${PORT}" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+        echo "--port must be between 1 and 65535." >&2
+        exit 1
+    fi
+
+    if [[ ! "${API_LOCATION}" =~ ^/[-a-zA-Z0-9_/]*$ ]]; then
+        echo "--api-location must start with / and contain only URL-safe path characters." >&2
+        exit 1
+    fi
+
+    if [[ "${API_LOCATION}" != */ ]]; then
+        API_LOCATION="${API_LOCATION}/"
+    fi
+}
+
+prepare_paths() {
+    PROJECT_ROOT="${WEB_ROOT_BASE}/${PROJECT}"
+    WEB_ROOT="${PROJECT_ROOT}/public"
+    STAGING_ROOT="${STAGING_BASE}/${PROJECT}"
+    DOMAIN="${PROJECT}.${DOMAIN_BASE}"
+    UPLOADS_DIR="${PROJECT_ROOT}/uploads"
+    SITE_CONFIG="/etc/nginx/sites-available/${DOMAIN}"
+    NODE_APP_DIR="${STAGING_ROOT}/${APP_SUBDIR}"
+    NODE_ENTRYPOINT="${NODE_APP_DIR}/${ENTRYPOINT}"
+    ENV_FILE="${NODE_APP_DIR}/.env"
+    SERVICE_UNIT="/etc/systemd/system/${SERVICE_NAME}.service"
 }
 
 prepare_logging() {
@@ -51,29 +190,224 @@ prepare_logging() {
     exec > >(tee -a "${LOG_FILE}") 2>&1
 }
 
-main() {
-    require_root
-    validate_args "$@"
-    prepare_paths
-    validate_project
-    prepare_logging
+require_web_project() {
+    if [[ ! -d "${PROJECT_ROOT}" || ! -d "${WEB_ROOT}" ]]; then
+        echo "Project does not exist: ${PROJECT}" >&2
+        exit 1
+    fi
+
+    if [[ ! -d "${STAGING_ROOT}" ]]; then
+        echo "Project staging directory not found: ${STAGING_ROOT}" >&2
+        exit 1
+    fi
+}
+
+run_laravel_setup() {
+    local app_dir="${WEB_ROOT}"
+
+    if [[ ! -f "${app_dir}/artisan" ]]; then
+        echo "ERROR: ${app_dir}/artisan not found. Use the node-api profile for Node services." >&2
+        exit 1
+    fi
 
     echo "[$(date -Is)] Starting Laravel bootstrap for: ${PROJECT}"
-    echo "App dir: ${APP_DIR}"
+    echo "App dir: ${app_dir}"
 
-    # Create bootstrap/cache if missing
-    sudo -u www-data mkdir -p "${APP_DIR}/bootstrap/cache"
+    sudo -u www-data mkdir -p "${app_dir}/bootstrap/cache"
+    sudo -u www-data php "${app_dir}/artisan" key:generate --force
+    sudo -u www-data php "${app_dir}/artisan" storage:link --force
+    sudo -u www-data php "${app_dir}/artisan" config:clear
+    sudo -u www-data php "${app_dir}/artisan" migrate --force
+    sudo -u www-data php "${app_dir}/artisan" db:seed --force
+    sudo -u www-data php "${app_dir}/artisan" config:cache
+    sudo -u www-data php "${app_dir}/artisan" route:cache
 
-    # Run artisan commands as www-data
-    sudo -u www-data php "${APP_DIR}/artisan" key:generate --force
-    sudo -u www-data php "${APP_DIR}/artisan" storage:link --force
-    sudo -u www-data php "${APP_DIR}/artisan" config:clear
-    sudo -u www-data php "${APP_DIR}/artisan" migrate --force
-    sudo -u www-data php "${APP_DIR}/artisan" db:seed --force
-    sudo -u www-data php "${APP_DIR}/artisan" config:cache
-    sudo -u www-data php "${APP_DIR}/artisan" route:cache
+    echo "[$(date -Is)] project-setup complete for: ${PROJECT} (laravel)"
+}
 
-    echo "[$(date -Is)] project-setup complete for: ${PROJECT}"
+ensure_template() {
+    local path="$1"
+
+    if [[ ! -f "${path}" ]]; then
+        echo "Required template not found: ${path}" >&2
+        exit 1
+    fi
+}
+
+ensure_api_user() {
+    if ! id "${API_USER}" >/dev/null 2>&1; then
+        useradd --system --no-create-home --shell /usr/sbin/nologin "${API_USER}"
+    fi
+}
+
+load_database_password() {
+    DB_PASSWORD=""
+
+    if [[ -f "${ENV_FILE}" ]]; then
+        DB_PASSWORD="$(sed -nE 's|^DATABASE_URL=postgres://[^:]+:([^@]+)@.*$|\1|p' "${ENV_FILE}" | head -n 1)"
+
+        if [[ -z "${DB_PASSWORD}" ]]; then
+            echo "Existing ${ENV_FILE} does not contain a parseable PostgreSQL DATABASE_URL." >&2
+            exit 1
+        fi
+    fi
+
+    if [[ -z "${DB_PASSWORD}" ]]; then
+        DB_PASSWORD="$(openssl rand -hex 24)"
+    fi
+}
+
+setup_postgres() {
+    if ! command -v psql >/dev/null 2>&1; then
+        echo "psql is required for the node-api profile." >&2
+        exit 1
+    fi
+
+    load_database_password
+
+    sudo -u postgres psql \
+        --set=kevin_db_name="${DB_NAME}" \
+        --set=kevin_db_user="${DB_USER}" \
+        --set=kevin_db_password="${DB_PASSWORD}" <<'SQL'
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'kevin_db_user') THEN
+        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'kevin_db_user', :'kevin_db_password');
+    ELSE
+        EXECUTE format('ALTER ROLE %I WITH PASSWORD %L', :'kevin_db_user', :'kevin_db_password');
+    END IF;
+END
+$$;
+
+SELECT format('CREATE DATABASE %I OWNER %I', :'kevin_db_name', :'kevin_db_user')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'kevin_db_name')\gexec
+
+SELECT format('ALTER DATABASE %I OWNER TO %I', :'kevin_db_name', :'kevin_db_user')\gexec
+SELECT format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I', :'kevin_db_name', :'kevin_db_user')\gexec
+\connect :kevin_db_name
+SELECT format('GRANT ALL ON SCHEMA public TO %I', :'kevin_db_user')\gexec
+SQL
+}
+
+setup_uploads() {
+    install -d -o "${API_USER}" -g www-data -m 775 "${UPLOADS_DIR}"
+}
+
+fix_staging_permissions() {
+    find "${STAGING_ROOT}" -type d -exec chmod g+rws {} +
+    find "${STAGING_ROOT}" -type f ! -name ".env" -exec chmod g+w {} +
+}
+
+render_template() {
+    local template_path="$1"
+    local destination="$2"
+
+    sed \
+        -e "s|{{PROJECT}}|${PROJECT}|g" \
+        -e "s|{{DOMAIN}}|${DOMAIN}|g" \
+        -e "s|{{WEB_ROOT}}|${WEB_ROOT}|g" \
+        -e "s|{{UPLOADS_DIR}}|${UPLOADS_DIR}|g" \
+        -e "s|{{API_PORT}}|${PORT}|g" \
+        -e "s|{{API_LOCATION}}|${API_LOCATION}|g" \
+        -e "s|{{API_USER}}|${API_USER}|g" \
+        -e "s|{{APP_DIR}}|${NODE_APP_DIR}|g" \
+        -e "s|{{ENV_FILE}}|${ENV_FILE}|g" \
+        -e "s|{{ENTRYPOINT}}|${NODE_ENTRYPOINT}|g" \
+        "${template_path}" > "${destination}"
+}
+
+configure_nginx() {
+    ensure_template "${NODE_API_NGINX_TEMPLATE}"
+    render_template "${NODE_API_NGINX_TEMPLATE}" "${SITE_CONFIG}"
+    nginx -t
+    systemctl reload nginx
+}
+
+configure_systemd() {
+    ensure_template "${NODE_API_SERVICE_TEMPLATE}"
+    render_template "${NODE_API_SERVICE_TEMPLATE}" "${SERVICE_UNIT}"
+    chmod 644 "${SERVICE_UNIT}"
+
+    if command -v systemd-analyze >/dev/null 2>&1; then
+        systemd-analyze verify "${SERVICE_UNIT}"
+    fi
+
+    systemctl daemon-reload
+    systemctl enable "${SERVICE_NAME}"
+}
+
+write_env_file() {
+    if [[ -f "${ENV_FILE}" ]]; then
+        echo ".env already exists at ${ENV_FILE}; leaving it unchanged."
+        return
+    fi
+
+    install -d -o "${API_USER}" -g "${API_USER}" -m 755 "${NODE_APP_DIR}"
+
+    JWT_SECRET="$(openssl rand -hex 32)"
+    cat > "${ENV_FILE}" <<EOF
+NODE_ENV=production
+PORT=${PORT}
+DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@127.0.0.1:5432/${DB_NAME}
+JWT_SECRET=${JWT_SECRET}
+UPLOADS_DIR=${UPLOADS_DIR}
+CORS_ORIGIN=https://${DOMAIN}
+SEED_ALLOWED=false
+EOF
+    chown "${API_USER}:${API_USER}" "${ENV_FILE}"
+    chmod 600 "${ENV_FILE}"
+}
+
+run_node_api_setup() {
+    if [[ ! -d "${NODE_APP_DIR}" ]]; then
+        echo "App directory not found: ${NODE_APP_DIR}" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${NODE_ENTRYPOINT}" ]]; then
+        echo "Node entrypoint not found: ${NODE_ENTRYPOINT}" >&2
+        exit 1
+    fi
+
+    echo "[$(date -Is)] Starting Node API setup for: ${PROJECT}"
+    echo "App dir: ${NODE_APP_DIR}"
+    echo "Service: ${SERVICE_NAME}"
+    echo "Database: ${DB_NAME}"
+    echo "Database user: ${DB_USER}"
+
+    ensure_api_user
+    setup_postgres
+    setup_uploads
+    fix_staging_permissions
+    write_env_file
+    configure_nginx
+    configure_systemd
+
+    echo
+    echo "Next steps:"
+    echo "  1. If Node.js is not already installed, provision it separately before starting ${SERVICE_NAME}."
+    echo "  2. Review ${ENV_FILE} if you need non-default values."
+    echo "  3. Run migrations from ${NODE_APP_DIR} if the app requires them."
+    echo "  4. Start the API with: systemctl start ${SERVICE_NAME}"
+    echo
+    echo "[$(date -Is)] project-setup complete for: ${PROJECT} (node-api)"
+}
+
+main() {
+    require_root
+    parse_args "$@"
+    prepare_paths
+    require_web_project
+    prepare_logging
+
+    case "${PROFILE}" in
+        laravel)
+            run_laravel_setup
+            ;;
+        node-api)
+            run_node_api_setup
+            ;;
+    esac
 }
 
 main "$@"

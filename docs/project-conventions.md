@@ -17,7 +17,9 @@ Application content is staged in `/opt/kevin/staging/<project>` and then deploye
 
 `project-deploy` treats the staging directory as the source of truth for the live web root. After sync, Kevin reapplies `www-data:www-data`, `755` on directories, and `644` on files so reruns converge cleanly.
 
-Laravel-specific bootstrap is handled separately by `project-setup` after deployment. That tool operates only in `/var/www/<project>/public`, requires a detectable `artisan` file, and runs framework setup commands as `www-data`.
+Laravel-specific bootstrap is handled separately by `project-setup` after deployment. In its default `laravel` profile, the tool operates only in `/var/www/<project>/public`, requires a detectable `artisan` file, and runs framework setup commands as `www-data`.
+
+For staged Node services, `project-setup <project> node-api` provisions a bounded set of root actions: PostgreSQL role and database creation, uploads directory creation, Nginx reverse-proxy rendering from a root-owned template, systemd unit rendering from a root-owned template, and `.env` creation inside the staged app directory. It does not execute project-owned shell scripts from staging as root.
 
 Disabling a project removes only the `sites-enabled` symlink. The rendered config in `sites-available` and the project files under `/var/www/<project>` remain in place for manual review or future re-enablement.
 

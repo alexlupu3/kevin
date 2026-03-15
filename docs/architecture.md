@@ -18,4 +18,6 @@ Deployments are intentionally narrowed to one approved path: staged content unde
 
 For Laravel apps, `project-setup` is a distinct post-deploy step that runs in the already-approved live web root as `www-data`. Keeping that bootstrap separate from `project-deploy` preserves a narrow deployment primitive while still allowing framework-specific setup to be rerun and audited through its own log.
 
+For non-PHP services that still need bounded root setup, `project-setup` can expose explicit profiles backed by root-owned templates and parameter validation. That keeps Kevin on audited rails for actions like database provisioning, Nginx updates, and systemd unit installation without allowing arbitrary staged scripts to execute as root.
+
 The layout also leaves room for future Codex or controller-driven automation because the operational surface is already narrow, documented, and script-based.

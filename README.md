@@ -11,7 +11,7 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Run safe package maintenance
 - Provision a new PHP/Nginx project site
 - Deploy staged project files from `/opt/kevin/staging/<project>/` into the live web root
-- Run Laravel post-deploy bootstrap tasks in the live web root
+- Run setup profiles for Laravel or staged Node API services
 - List existing PHP/Nginx project sites and whether they are enabled
 - Re-enable a previously disabled project site
 - Disable an existing project site without deleting files
@@ -19,7 +19,7 @@ Kevin is a restricted VPS operations agent for an Ubuntu 24.04 server. This repo
 - Run a practical vulnerability and hardening audit
 - Install a tightly scoped sudoers policy for Kevin
 
-Kevin is intentionally restricted. It does not get unrestricted sudo, raw root shell access, database provisioning, or DNS automation in v1.
+Kevin is intentionally restricted. It does not get unrestricted sudo, raw root shell access, arbitrary project script execution as root, or DNS automation in v1.
 
 ## Repo Layout
 
@@ -161,6 +161,26 @@ test -f /var/www/testapp/public/bootstrap/cache/config.php
 test -L /var/www/testapp/public/public/storage
 ```
 
+For a staged Node API, use the explicit `node-api` profile instead of trying to run a staged shell script as root:
+
+```bash
+sudo kevin project-setup testapp node-api
+```
+
+Or override the bounded parameters for a different layout:
+
+```bash
+sudo kevin project-setup testapp node-api \
+  --app-subdir api \
+  --service-name testapp-api \
+  --api-user testapp-api \
+  --db-name testapp \
+  --db-user testapp_api \
+  --port 3100 \
+  --entrypoint dist/server.js \
+  --api-location /api/
+```
+
 To list all configured projects and whether each site is enabled:
 
 ```bash
@@ -197,4 +217,4 @@ sudo kevin project-delete testapp --force
 - `project-list` reads Kevin-managed Nginx site configs and reports `enabled` or `disabled`.
 - `project-deploy` syncs only from `/opt/kevin/staging/<project>/` into `/var/www/<project>/public/`, then reapplies `www-data:www-data`, `755` directories, and `644` files.
 - `project-delete` removes the site config and project files and requires `--force`.
-- `project-setup` runs Laravel bootstrap tasks as `www-data` inside `/var/www/<project>/public` and logs to `/var/log/kevin/project-setup.log`.
+- `project-setup` supports bounded setup profiles. The default `laravel` profile runs framework bootstrap tasks as `www-data` inside `/var/www/<project>/public`. The `node-api` profile provisions PostgreSQL, uploads storage, Nginx, a systemd unit, and a staged `.env` file using root-owned templates and validated arguments.
