@@ -16,6 +16,10 @@ server {
     root {{WEB_ROOT}};
     index index.html index.htm index.php;
 
+    location /admin/ {
+        try_files $uri $uri/ /admin/index.html;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
