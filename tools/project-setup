@@ -31,6 +31,12 @@ node-api options:
   --port <port>             Local API listen port (default: 3100)
   --entrypoint <path>       Node entrypoint relative to app dir (default: dist/server.js)
   --api-location <path>     Nginx location to proxy (default: /api/)
+  --client-max-body-size <size>
+                            Nginx client_max_body_size (default: 5M)
+  --proxy-read-timeout <duration>
+                            Nginx proxy_read_timeout (default: 120s)
+  --proxy-send-timeout <duration>
+                            Nginx proxy_send_timeout (default: 120s)
   --node-bin <path>         Absolute path to the node binary (default: use /usr/bin/env node)
   --start-service           Restart the API service after setup and print its status
 EOF
@@ -85,6 +91,26 @@ validate_simple_name() {
     fi
 }
 
+validate_nginx_size() {
+    local value="$1"
+    local label="$2"
+
+    if [[ ! "${value}" =~ ^[1-9][0-9]*[kKmMgG]?$ ]]; then
+        echo "${label} must be a positive Nginx size value like 5M." >&2
+        exit 1
+    fi
+}
+
+validate_nginx_duration() {
+    local value="$1"
+    local label="$2"
+
+    if [[ ! "${value}" =~ ^[1-9][0-9]*([smhdw]|ms)?$ ]]; then
+        echo "${label} must be a positive Nginx time value like 120s." >&2
+        exit 1
+    fi
+}
+
 parse_args() {
     if [[ "$#" -lt 1 ]]; then
         usage >&2
@@ -116,6 +142,9 @@ parse_args() {
     PORT="3100"
     ENTRYPOINT="dist/server.js"
     API_LOCATION="/api/"
+    CLIENT_MAX_BODY_SIZE="5M"
+    PROXY_READ_TIMEOUT="120s"
+    PROXY_SEND_TIMEOUT="120s"
     NODE_BIN=""
     START_SERVICE="0"
 
@@ -153,6 +182,18 @@ parse_args() {
                 API_LOCATION="${2:-}"
                 shift 2
                 ;;
+            --client-max-body-size)
+                CLIENT_MAX_BODY_SIZE="${2:-}"
+                shift 2
+                ;;
+            --proxy-read-timeout)
+                PROXY_READ_TIMEOUT="${2:-}"
+                shift 2
+                ;;
+            --proxy-send-timeout)
+                PROXY_SEND_TIMEOUT="${2:-}"
+                shift 2
+                ;;
             --node-bin)
                 NODE_BIN="${2:-}"
                 shift 2
@@ -179,6 +220,10 @@ parse_args() {
     if [[ -n "${NODE_BIN}" ]]; then
         validate_absolute_path "${NODE_BIN}" "--node-bin"
     fi
+
+    validate_nginx_size "${CLIENT_MAX_BODY_SIZE}" "--client-max-body-size"
+    validate_nginx_duration "${PROXY_READ_TIMEOUT}" "--proxy-read-timeout"
+    validate_nginx_duration "${PROXY_SEND_TIMEOUT}" "--proxy-send-timeout"
 
     if [[ ! "${PORT}" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
         echo "--port must be between 1 and 65535." >&2
@@ -336,6 +381,9 @@ render_template() {
         -e "s|{{UPLOADS_DIR}}|${UPLOADS_DIR}|g" \
         -e "s|{{API_PORT}}|${PORT}|g" \
         -e "s|{{API_LOCATION}}|${API_LOCATION}|g" \
+        -e "s|{{CLIENT_MAX_BODY_SIZE}}|${CLIENT_MAX_BODY_SIZE}|g" \
+        -e "s|{{PROXY_READ_TIMEOUT}}|${PROXY_READ_TIMEOUT}|g" \
+        -e "s|{{PROXY_SEND_TIMEOUT}}|${PROXY_SEND_TIMEOUT}|g" \
         -e "s|{{API_USER}}|${API_USER}|g" \
         -e "s|{{APP_DIR}}|${NODE_APP_DIR}|g" \
         -e "s|{{ENV_FILE}}|${ENV_FILE}|g" \
@@ -412,6 +460,9 @@ run_node_api_setup() {
     echo "Service: ${SERVICE_NAME}"
     echo "Database: ${DB_NAME}"
     echo "Database user: ${DB_USER}"
+    echo "client_max_body_size: ${CLIENT_MAX_BODY_SIZE}"
+    echo "proxy_read_timeout: ${PROXY_READ_TIMEOUT}"
+    echo "proxy_send_timeout: ${PROXY_SEND_TIMEOUT}"
     echo "Node command: ${NODE_COMMAND}"
 
     ensure_api_user

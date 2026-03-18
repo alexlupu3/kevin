@@ -116,6 +116,15 @@ test -f /etc/systemd/system/testapp-api.service
 sudo systemctl status testapp-api --no-pager
 ```
 
+To override the default Nginx body size and proxy timeouts for that API:
+
+```bash
+sudo kevin project-setup testapp node-api \
+  --client-max-body-size 5M \
+  --proxy-read-timeout 120s \
+  --proxy-send-timeout 120s
+```
+
 If the API must use a Node binary from Kevin's NVM install, keep that path inside the bounded setup flow:
 
 ```bash
